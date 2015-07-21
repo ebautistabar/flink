@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.accumulators;
 
+import org.apache.flink.api.common.accumulators.Accumulator;
+
 /**
  * Container class that transports the result of an accumulator as set of strings.
  */
@@ -33,6 +35,12 @@ public class StringifiedAccumulatorResult implements java.io.Serializable{
 		this.name = name;
 		this.type = type;
 		this.value = value;
+	}
+
+	public StringifiedAccumulatorResult(String name, Accumulator<?, ?> accumulator) {
+		this.name = name;
+		this.type = accumulator == null ? null : accumulator.getClass().getSimpleName();
+		this.value = accumulator == null ? null : accumulator.toString();
 	}
 
 	public String getName() {

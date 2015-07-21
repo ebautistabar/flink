@@ -684,11 +684,15 @@ class JobManager(
               case Some((graph, jobInfo)) =>
                 graph.getAccumulatorsSerialized
               case None =>
-                null // TODO check also archive
+                null
             }
           }
 
-          sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+          if (accumulatorValues == null) {
+            archive forward RequestAccumulatorResults(jobID)
+          } else {
+            sender() ! AccumulatorResultsFound(jobID, accumulatorValues)
+          }
         }
         catch {
           case e: Exception =>
@@ -701,30 +705,18 @@ class JobManager(
           val accumulatorValues: Array[StringifiedAccumulatorResult] = {
             currentJobs.get(jobId) match {
               case Some((graph, jobInfo)) =>
-                val accumulators = graph.aggregateUserAccumulators()
-
-                val result: Array[StringifiedAccumulatorResult] = new
-                    Array[StringifiedAccumulatorResult](accumulators.size)
-
-                var i = 0
-                accumulators foreach {
-                  case (name, accumulator) =>
-                    val (typeString, valueString) =
-                      if (accumulator != null) {
-                        (accumulator.getClass.getSimpleName, accumulator.toString)
-                      } else {
-                        (null, null)
-                      }
-                    result(i) = new StringifiedAccumulatorResult(name, typeString, valueString)
-                    i += 1
-                }
-                result
+                val accumulators = graph.getAccumulatorsStringified().values()
+                accumulators.toArray(new Array[StringifiedAccumulatorResult](accumulators.size))
               case None =>
-                null // TODO check also archive
+                null
             }
           }
 
-          sender() ! AccumulatorResultStringsFound(jobId, accumulatorValues)
+          if (accumulatorValues == null) {
+            archive forward RequestAccumulatorResultsStringified(jobId)
+          } else {
+            sender() ! AccumulatorResultStringsFound(jobId, accumulatorValues)
+          }
         }
         catch {
           case e: Exception =>

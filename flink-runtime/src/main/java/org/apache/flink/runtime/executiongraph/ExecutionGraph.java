@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -562,6 +563,22 @@ public class ExecutionGraph implements Serializable {
 		Map<String, SerializedValue<Object>> result = new HashMap<String, SerializedValue<Object>>();
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
 			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+		}
+
+		return result;
+	}
+
+	/**
+	 * Gets a stringified accumulator map.
+	 * @return The accumulator map with stringified accumulators.
+	 */
+	public Map<String, StringifiedAccumulatorResult> getAccumulatorsStringified() {
+
+		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
+
+		Map<String, StringifiedAccumulatorResult> result = new HashMap<String, StringifiedAccumulatorResult>();
+		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
+			result.put(entry.getKey(), new StringifiedAccumulatorResult(entry.getKey(), entry.getValue()));
 		}
 
 		return result;

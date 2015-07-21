@@ -22,9 +22,16 @@ import akka.actor.Actor
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.{ActorSynchronousLogging, ActorLogMessages}
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult
 import org.apache.flink.runtime.executiongraph.ExecutionGraph
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultStringsFound
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound
+import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous
+import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults
+import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResultsStringified
+import org.apache.flink.runtime.util.SerializedValue
 
 import scala.collection.mutable
 
@@ -100,6 +107,43 @@ class MemoryArchivist(private val max_entries: Int)
 
     case RequestJobCounts =>
       sender ! (finishedCnt, canceledCnt, failedCnt)
+
+    case RequestAccumulatorResults(jobID) =>
+      try {
+        val accumulatorValues: java.util.Map[String, SerializedValue[Object]] = {
+          graphs.get(jobID) match {
+            case Some(graph) =>
+              graph.getAccumulatorsSerialized
+            case None =>
+              null
+          }
+        }
+        sender ! AccumulatorResultsFound(jobID, accumulatorValues)
+      }
+      catch {
+        case e: Exception =>
+          log.error("Cannot serialize accumulator result", e)
+          sender ! AccumulatorResultsErroneous(jobID, e)
+      }
+
+    case RequestAccumulatorResultsStringified(jobID) =>
+      try {
+        val accumulatorValues: Array[StringifiedAccumulatorResult] = {
+          graphs.get(jobID) match {
+            case Some(graph) =>
+              val accumulators = graph.getAccumulatorsStringified().values()
+              accumulators.toArray(new Array[StringifiedAccumulatorResult](accumulators.size))
+            case None =>
+              null
+          }
+        }
+        sender ! AccumulatorResultStringsFound(jobID, accumulatorValues)
+      }
+      catch {
+        case e: Exception =>
+          log.error("Cannot fetch accumulator result", e)
+          sender ! AccumulatorResultsErroneous(jobID, e)
+      }
   }
 
   /**
